@@ -8,15 +8,40 @@ import argparse
 import heapq
 import re
 
+class Heuristic:
+    def __init__(self, specification):
+         pass
+
+    def estimate(self, state):
+        return 0.
+
+class Solver:
+    def __init__(self, problem, heuristic):
+        self.problem = problem
+        self.heuristic = heuristic
+    
+    def get_solution(self, node):
+        """
+        Backtrack a solution.
+        """
+        raise NotImplementedError()
+
+    def solve(self):
+        """
+        Try 10 random assignments and abort if no solution was found.
+        """
+        for i in range(10):
+            # Note that the following random state could be infeasible
+            random_state = tuple(np.random.randint(low=0, high=self.problem.num_workers, size=(self.problem.num_tasks,)))
+
+            if self.problem.is_goal_state(random_state):
+                return self.get_solution(None)
+                        
+        # If no solution is found
+        raise ValueError("I was not able to solve the problem, sorry.")
 
 
-# Eingelesenes Problem mittels Suche lösen & Details(Kosten, etc) ausgeben
-# json datei erzeugen
-
-#def no_heuristic():
-"""
-Problem Class (from task desciption):
-"""
+#Problem Class (from task desciption):
 class Problem:
     def __init__(self, specification:Dict[str, Any]):
         """
@@ -144,20 +169,79 @@ class Problem:
         cost = self.all_costs[task_id, worker_id]
 
         return self._encode(new_state), cost
+
+
+def save_solution(solution_data):
+    output = {
+        "solution": solution_data["solution"],
+        "action_sequence":solution_data["action_sequence"],
+        "n_expansions": solution_data["n_expansions"],
+        "total_cost": solution_data["total_cost"]
+    }
+
+    with open('solution.json', 'w') as f:
+        json.dump(output, f, indent=4)
+
+
+def solve_no_heuristic(problem):
+    print('started...')
+    initial_state = problem.get_initial_state()
+    tie_breaker_counter = 0
+    frontier = []
+    # frontier-queue should hold (cost, tie_breaker_counter, current_state, history) 
+    heapq.heappush(frontier, (0.0, tie_breaker_counter, initial_state, [])) 
+    explored_set = set()
+    n_expansions = 0
+
+    while frontier:
+        cost, _, current_state, history = heapq.heappop(frontier)
+        
+        if problem.is_goal_state(current_state):
+            print(f'Found solution: Cost: {cost}, Expansions: {n_expansions}')
+
+            solution = {}
+            state_dec = problem._decode(current_state)
+
+            for task_id, worker_id in enumerate(state_dec):
+                worker_key = f'worker_{worker_id}'
+                if worker_key not in solution:
+                    solution[worker_key] = []
+                solution[worker_key].append(int(task_id))
+
+            actions = {}
+            for idx, action, in enumerate(history):
+                actions[f'step_{idx}'] = [int(action[0]), int(action[1])]
+            
+            solution_data = {}
+            solution_data['solution'] = solution
+            solution_data['action_sequence'] = actions
+            solution_data['n_expansions'] = n_expansions
+            solution_data['total_cost'] = cost
+
+            save_solution(solution_data)
+            return
+        
+        if current_state in explored_set:
+            continue
+        explored_set.add(current_state)
+
+        n_expansions += 1
+
+        for action in problem.get_actions(current_state):
+            next_state, step_cost = problem.take_action(current_state, action)
+
+            # find some way of only 
+            if next_state not in explored_set:
+                new_cost = cost + step_cost
+                new_history = history + [action]
+
+                tie_breaker_counter += 1
+                heapq.heappush(frontier, (new_cost, tie_breaker_counter, next_state, new_history))
     
-"""
-depth-first-search() & recursive_dfs():
+    raise ValueError("problem could not be solved (frontier empty)")
 
-def recusive_dfs():
 
-def depth-first-search(problem):
-    return recursive_dfs()
-"""
-
-"""
-function that parses command line arguments:
-"""
-def parser(problem):
+def parser():
     parser = argparse.ArgumentParser(prog="solutions.py", description="solve resource allocation problems", epilog='siu')
 
     parser.add_argument('algorithm', type=str, 
@@ -173,12 +257,24 @@ def parser(problem):
 
     return args
 
-def main():
-    args = parser()
-
-    if args.algotithm == 'Astar-no-heuristic':
-        # no_heuristic(args.file_name)
-
 
 if __name__ == "__main__":
-    main()
+    args = parser()
+
+    try:
+        with open(args.file_name, 'r') as file:
+            problem_spec = json.load(file)
+
+        problem = Problem(problem_spec)
+
+        if args.algorithm == 'Astar-no-heuristic':
+            solve_no_heuristic(problem)
+        elif args.algorithm == 'Astar-with-heuristic':
+            pass
+        else:
+            pass
+
+    except Exception as e:
+        print(f"error: {e}")
+        raise ValueError(e)
+    
