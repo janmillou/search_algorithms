@@ -1,4 +1,3 @@
-# Imports:
 import numpy as np
 from numpy.typing import NDArray
 from typing import Tuple, Dict, Any
@@ -10,10 +9,18 @@ import re
 
 class Heuristic:
     def __init__(self, specification):
-         pass
+        self.num_tasks = specification['parameters']['num_tasks']
+
+        temp_problem_instance = Problem(specification)
+        all_costs = temp_problem_instance.get_all_costs()
+        
+        self.min_costs = np.min(all_costs, axis=1)
 
     def estimate(self, state):
-        return 0.
+        state_arr = np.array(state)
+        unassigned_mask = (state_arr == -1)
+        return np.sum(self.min_costs[unassigned_mask])
+
 
 class Solver:
     def __init__(self, problem, heuristic):
@@ -169,7 +176,9 @@ class Problem:
         cost = self.all_costs[task_id, worker_id]
 
         return self._encode(new_state), cost
-
+    
+    def get_all_costs(self):
+        return self.all_costs
 
 def save_solution(solution_data):
     output = {
@@ -182,13 +191,10 @@ def save_solution(solution_data):
     with open('solution.json', 'w') as f:
         json.dump(output, f, indent=4)
 
-
 def solve_no_heuristic(problem):
-    print('started...')
     initial_state = problem.get_initial_state()
     tie_breaker_counter = 0
     frontier = []
-    # frontier-queue should hold (cost, tie_breaker_counter, current_state, history) 
     heapq.heappush(frontier, (0.0, tie_breaker_counter, initial_state, [])) 
     explored_set = set()
     n_expansions = 0
@@ -230,7 +236,6 @@ def solve_no_heuristic(problem):
         for action in problem.get_actions(current_state):
             next_state, step_cost = problem.take_action(current_state, action)
 
-            # find some way of only 
             if next_state not in explored_set:
                 new_cost = cost + step_cost
                 new_history = history + [action]
@@ -240,7 +245,61 @@ def solve_no_heuristic(problem):
     
     raise ValueError("problem could not be solved (frontier empty)")
 
+def solve_w_heuristic(problem, heur):
+    initial_state = problem.get_initial_state()
+    tie_breaker_counter = 0
+    frontier = []
+    heapq.heappush(frontier, (0 + heur.estimate(initial_state), tie_breaker_counter, 0, initial_state, []))
+    explored_set = set()
+    n_expansions = 0
 
+    while(frontier):
+        f_n, _, cost, current_state, history = heapq.heappop(frontier)
+
+        if problem.is_goal_state(current_state):
+            print(f'Found solution: Cost: {cost}, Expansions: {n_expansions}')
+
+            solution = {}
+            state_dec = problem._decode(current_state)
+
+            for task_id, worker_id in enumerate(state_dec):
+                worker_key = f'worker_{worker_id}'
+                if worker_key not in solution:
+                    solution[worker_key] = []
+                solution[worker_key].append(int(task_id))
+
+            actions = {}
+            for idx, action, in enumerate(history):
+                actions[f'step_{idx}'] = [int(action[0]), int(action[1])]
+            
+            solution_data = {}
+            solution_data['solution'] = solution
+            solution_data['action_sequence'] = actions
+            solution_data['n_expansions'] = n_expansions
+            solution_data['total_cost'] = cost
+
+            save_solution(solution_data)
+            return
+        
+        if current_state in explored_set:
+            continue
+        explored_set.add(current_state)
+
+        n_expansions += 1
+
+        for action in problem.get_actions(current_state):
+            next_state, step_cost = problem.take_action(current_state, action)
+
+            if next_state not in explored_set:
+                new_cost = cost + step_cost
+                new_history = history + [action]
+                h = heur.estimate(next_state)
+                f = new_cost + h
+                tie_breaker_counter += 1
+                heapq.heappush(frontier, (f, tie_breaker_counter, new_cost, next_state, new_history))
+    
+    raise ValueError("problem could not be solved (frontier empty)")
+    
 def parser():
     parser = argparse.ArgumentParser(prog="solutions.py", description="solve resource allocation problems", epilog='siu')
 
@@ -270,7 +329,8 @@ if __name__ == "__main__":
         if args.algorithm == 'Astar-no-heuristic':
             solve_no_heuristic(problem)
         elif args.algorithm == 'Astar-with-heuristic':
-            pass
+            heur = Heuristic(problem_spec)
+            solve_w_heuristic(problem, heur)
         else:
             pass
 
