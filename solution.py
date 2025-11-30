@@ -319,9 +319,10 @@ def parser():
 
 if __name__ == "__main__":
     args = parser()
+    file_path = os.path.join('testproblems', args.file_name)
 
     try:
-        with open(args.file_name, 'r') as file:
+        with open(file_path, 'r') as file:
             problem_spec = json.load(file)
 
         problem = Problem(problem_spec)

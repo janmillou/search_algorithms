@@ -1,0 +1,23 @@
+{
+    "parameters": {
+        "num_workers": 2,
+        "num_tasks": 2,
+        "max_tasks_per_worker": 1
+    },
+    "tasks": [
+        {
+            "id": 0,
+            "costs": {
+                "worker_0": 2.209278197011611,
+                "worker_1": 8.626903632435095
+            }
+        },
+        {
+            "id": 1,
+            "costs": {
+                "worker_0": 7.873971570789526,
+                "worker_1": 3.2956212316547955
+            }
+        }
+    ]
+}
