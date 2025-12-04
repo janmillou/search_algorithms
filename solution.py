@@ -21,7 +21,6 @@ class Heuristic:
         unassigned_mask = (state_arr == -1)
         return np.sum(self.min_costs[unassigned_mask])
 
-
 class Solver:
     def __init__(self, problem, heuristic, algorithm_name):
         self.problem = problem
@@ -60,7 +59,7 @@ class Solver:
         elif self.algorithm == 'Astar-with-heuristic':
             self.solve_astar(problem, self.heuristic)
         else:
-            pass
+            self.depth_first_iter(problem)
 
     def solve_astar(self, problem, heur):
         initial_state = problem.get_initial_state()
@@ -131,6 +130,42 @@ class Solver:
         
         raise ValueError("problem could not be solved (frontier empty)")
 
+
+    def depth_first_iter(self, problem):
+        initial_state = problem.get_initial_state()
+        frontier = []
+        stack_counter = 0
+        cost = 0
+        heapq.heappush(frontier, (stack_counter, initial_state, cost, [])) #max_heap
+        explored_set = set()
+        n_expansions = 0
+
+        while frontier:
+            _, current_state, cost, history  = heapq.heappop(frontier)
+
+            if problem.is_goal_state(current_state):
+                solution_data = self.get_solution(current_state, history, cost, n_expansions)
+                self.save_solution(solution_data)
+                return
+            
+            if current_state in explored_set:
+                continue
+            explored_set.add(current_state)
+
+            n_expansions += 1
+            
+            for action in problem.get_actions(current_state):
+                next_state, step_cost = problem.take_action(current_state, action)
+
+                if next_state not in explored_set:
+                    new_cost = cost + step_cost
+                    new_history = history + [action]
+                    stack_counter += 1
+                    heapq.heappush(frontier, (stack_counter, next_state, new_cost, new_history))
+
+        raise ValueError("problem could note be solved (frontier empty)")
+    
+
     def save_solution(self, solution_data):
         output = {
             "solution": solution_data["solution"],
@@ -141,8 +176,7 @@ class Solver:
 
         with open('solution.json', 'w') as f:
             json.dump(output, f, indent=4)
-
-        
+       
 class Problem:
     def __init__(self, specification:Dict[str, Any]):
         """
@@ -294,7 +328,6 @@ def parser():
 if __name__ == "__main__":
     args = parser()
     file_path = os.path.join('testproblems', args.file_name)
-
     
     with open(file_path, 'r') as file:
         problem_spec = json.load(file)
@@ -303,5 +336,3 @@ if __name__ == "__main__":
     problem = Problem(problem_spec)
     solver = Solver(problem, heur, args.algorithm)
     solver.solve()
-
-    
