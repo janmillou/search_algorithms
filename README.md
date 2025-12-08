@@ -23,5 +23,6 @@ The tool outputs a solution.json containing the optimal assignment, step-by-step
 
 To test the programm, copy one of the testproblem .json files into the solutions.py directory.
 Then run: 
-  python solutios.py *algorithm_name* *testproblem.json*
+  
+  python solutios.py \*algorithm_name\* \*testproblem.json\*
 
