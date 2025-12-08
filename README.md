@@ -22,6 +22,7 @@ Input is a JSON file defining worker constraints and cost matrices - explore the
 The tool outputs a solution.json containing the optimal assignment, step-by-step action sequence, and performance metrics (total cost, expansion count).
 
 To test the programm, copy one of the testproblem .json files into the solutions.py directory.
+
 Then run: 
   
   python solutios.py \*algorithm_name\* \*testproblem.json\*
