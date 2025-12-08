@@ -13,10 +13,15 @@ It features custom implementations of state-space search algorithms without rely
 
 ## Available Algorithms:
 
-* Astar-with-heuristic (Recommended for optimal solutions)
+* Astar-with-heuristic (A*)
 * Astar-no-heuristic (Uniform Cost Search)
-* depth-first (For memory-constrained deep searches)
+* depth-first 
 
 ## Input/Output
 Input is a JSON file defining worker constraints and cost matrices - explore the 'testproblem'-folder to see their structure.
 The tool outputs a solution.json containing the optimal assignment, step-by-step action sequence, and performance metrics (total cost, expansion count).
+
+To test the programm, copy one of the testproblem .json files into the solutions.py directory.
+Then run: 
+  python solutios.py *algorithm_name* *testproblem.json*
+
